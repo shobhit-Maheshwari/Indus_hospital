@@ -1,0 +1,62 @@
+services:
+  local_dev_atlas:
+    image: mongodb/mongodb-atlas-local:8.0
+    hostname: local_dev_atlas
+    ports:
+      - 27017:27017
+    environment:
+      - MONGODB_INITDB_ROOT_USERNAME=philoagents
+      - MONGODB_INITDB_ROOT_PASSWORD=philoagents
+    volumes:
+      - data:/data/db
+      - config:/data/configdb
+    networks:
+      - philoagents-network
+  api:
+    container_name: philoagents-api
+    build:
+      context: ./philoagents-api
+      dockerfile: Dockerfile
+    environment:
+      - MONGODB_URI=mongodb://philoagents:philoagents@local_dev_atlas:27017/?directConnection=true
+      - REDIS_URI=redis://philoagents-redis:6379/0
+      - HF_HUB_DOWNLOAD_TIMEOUT=300
+    ports:
+      - "8000:8000"
+    env_file:
+      - ./philoagents-api/.env
+    networks:
+      - philoagents-network
+  redis:
+    image: redis:7-alpine
+    container_name: philoagents-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - philoagents-network
+
+  ui:
+    container_name: philoagents-ui
+    build:
+      context: ./philoagents-ui
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./philoagents-ui:/app
+      - /app/node_modules
+    depends_on:
+      - api
+    networks:
+      - philoagents-network
+
+volumes:
+  data:
+  config:
+  redis_data:
+
+networks:
+  philoagents-network:
+    name: philoagents-network
